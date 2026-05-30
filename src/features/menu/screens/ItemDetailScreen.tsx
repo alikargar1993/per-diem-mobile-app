@@ -1,9 +1,14 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo } from 'react';
 import { ScrollView, StyleSheet, View } from 'react-native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { MenuStackParamList } from '@/app/navigation/types';
-import { loadItemById } from '@/features/menu/store/menuSlice';
+import { ItemDetailSkeleton } from '@/features/menu/components/ItemDetailSkeleton';
+import {
+  clearItemDetailState,
+  loadItemById,
+} from '@/features/menu/store/menuSlice';
 import { formatMoney } from '@/features/menu/utils/formatMoney';
+import { ScreenStatePanel } from '@/shared/components/ScreenStatePanel';
 import { useAppDispatch, useAppSelector } from '@/shared/store/hooks';
 import {
   AppButton,
@@ -32,31 +37,35 @@ export function ItemDetailScreen({ navigation, route }: Props) {
   const { itemId } = route.params;
   const dispatch = useAppDispatch();
   const { colors } = useAppTheme();
-  const [loadError, setLoadError] = useState<string | null>(null);
 
   const selectedLocationId = useAppSelector(
     state => state.locations.selectedLocationId,
   );
   const item = useAppSelector(state => state.menu.itemsById[itemId]);
+  const itemDetailItemId = useAppSelector(state => state.menu.itemDetailItemId);
+  const itemDetailStatus = useAppSelector(state => state.menu.itemDetailStatus);
+  const itemDetailError = useAppSelector(state => state.menu.itemDetailError);
+
+  const isLoadingItem =
+    !item &&
+    itemDetailItemId === itemId &&
+    itemDetailStatus === 'loading';
+  const loadFailed =
+    !item &&
+    itemDetailItemId === itemId &&
+    itemDetailStatus === 'failed';
+
+  useEffect(() => {
+    return () => {
+      dispatch(clearItemDetailState());
+    };
+  }, [dispatch]);
 
   useEffect(() => {
     if (item || !selectedLocationId) {
-      setLoadError(null);
       return;
     }
-    let cancelled = false;
-    dispatch(loadItemById({ itemId, locationId: selectedLocationId }))
-      .unwrap()
-      .catch(e => {
-        if (!cancelled) {
-          setLoadError(
-            e instanceof Error ? e.message : 'Unable to load this item.',
-          );
-        }
-      });
-    return () => {
-      cancelled = true;
-    };
+    dispatch(loadItemById({ itemId, locationId: selectedLocationId }));
   }, [dispatch, item, itemId, selectedLocationId]);
 
   const surfaceStyle = useMemo(
@@ -74,16 +83,45 @@ export function ItemDetailScreen({ navigation, route }: Props) {
     navigation.goBack();
   }, [navigation]);
 
-  if (!item && loadError) {
+  const onRetry = useCallback(() => {
+    if (selectedLocationId) {
+      dispatch(loadItemById({ itemId, locationId: selectedLocationId }));
+    }
+  }, [dispatch, itemId, selectedLocationId]);
+
+  if (!selectedLocationId) {
     return (
       <AppScreen>
-        <View style={styles.centered}>
-          <AppText variant="subtitle">Item not available</AppText>
-          <AppText variant="body" muted>
-            {loadError}
-          </AppText>
-          <AppButton label="Go back" onPress={onGoBack} />
-        </View>
+        <ScreenStatePanel
+          title="No location selected"
+          message="Choose a store location on the menu tab to view item details."
+          actionLabel="Go back"
+          onAction={onGoBack}
+        />
+      </AppScreen>
+    );
+  }
+
+  if (loadFailed) {
+    return (
+      <AppScreen>
+        <ScreenStatePanel
+          title="Item not available"
+          message={
+            itemDetailError ??
+            'This item may not be available at the selected location or during the current meal period.'
+          }
+          actionLabel="Try again"
+          onAction={onRetry}
+        />
+      </AppScreen>
+    );
+  }
+
+  if (isLoadingItem) {
+    return (
+      <AppScreen edges={['left', 'right', 'bottom']}>
+        <ItemDetailSkeleton />
       </AppScreen>
     );
   }
@@ -91,11 +129,11 @@ export function ItemDetailScreen({ navigation, route }: Props) {
   if (!item) {
     return (
       <AppScreen>
-        <View style={styles.centered}>
-          <AppText variant="body" muted>
-            Loading item…
-          </AppText>
-        </View>
+        <ScreenStatePanel
+          loading
+          title="Loading item"
+          loadingMessage="Fetching item details…"
+        />
       </AppScreen>
     );
   }
@@ -119,7 +157,11 @@ export function ItemDetailScreen({ navigation, route }: Props) {
             <AppText variant="body" muted style={styles.description}>
               {item.description}
             </AppText>
-          ) : null}
+          ) : (
+            <AppText variant="body" muted style={styles.description}>
+              No description available.
+            </AppText>
+          )}
         </View>
         {item.variations.length > 0 ? (
           <View style={surfaceStyle}>
@@ -135,6 +177,7 @@ export function ItemDetailScreen({ navigation, route }: Props) {
             ))}
           </View>
         ) : null}
+        <AppButton label="Back to menu" variant="secondary" onPress={onGoBack} />
       </ScrollView>
     </AppScreen>
   );
@@ -144,12 +187,6 @@ const styles = StyleSheet.create({
   scrollContent: {
     padding: 16,
     gap: 12,
-  },
-  centered: {
-    flex: 1,
-    padding: 20,
-    gap: 12,
-    justifyContent: 'center',
   },
   heroImage: {
     width: '100%',

@@ -5,6 +5,7 @@ import {
 } from '@reduxjs/toolkit';
 import { fetchLocations } from '@/features/menu/api/menuApi';
 import { getStorageItem, setStorageItem } from '@/shared/storage/appStorage';
+import { formatApiErrorMessage } from '@/shared/utils/formatApiErrorMessage';
 import type { LocationDto } from '@/shared/types/api';
 
 const SELECTED_LOCATION_KEY = 'selected_location_id';
@@ -23,13 +24,20 @@ const initialState: LocationsState = {
   error: null,
 };
 
-export const loadLocations = createAsyncThunk(
-  'locations/loadLocations',
-  async () => {
+export const loadLocations = createAsyncThunk<
+  LocationDto[],
+  void,
+  { rejectValue: string }
+>('locations/loadLocations', async (_, { rejectWithValue }) => {
+  try {
     const response = await fetchLocations();
     return response.locations;
-  },
-);
+  } catch (e) {
+    return rejectWithValue(
+      formatApiErrorMessage(e, 'Failed to load locations'),
+    );
+  }
+});
 
 export const hydrateSelectedLocation = createAsyncThunk(
   'locations/hydrateSelectedLocation',
@@ -57,6 +65,10 @@ const locationsSlice = createSlice({
       .addCase(loadLocations.fulfilled, (state, action) => {
         state.status = 'succeeded';
         state.items = action.payload;
+        if (action.payload.length === 0) {
+          state.selectedLocationId = null;
+          return;
+        }
         if (state.selectedLocationId) {
           const stillValid = action.payload.some(
             l => l.id === state.selectedLocationId,
@@ -64,13 +76,13 @@ const locationsSlice = createSlice({
           if (!stillValid) {
             state.selectedLocationId = action.payload[0]?.id ?? null;
           }
-        } else if (action.payload.length > 0) {
+        } else {
           state.selectedLocationId = action.payload[0].id;
         }
       })
       .addCase(loadLocations.rejected, (state, action) => {
         state.status = 'failed';
-        state.error = action.error.message ?? 'Failed to load locations';
+        state.error = action.payload ?? 'Failed to load locations';
       })
       .addCase(hydrateSelectedLocation.fulfilled, (state, action) => {
         if (action.payload) {

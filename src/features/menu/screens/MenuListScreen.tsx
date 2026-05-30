@@ -14,6 +14,7 @@ import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { MenuStackParamList } from '@/app/navigation/types';
 import { CategoryFilter } from '@/features/categories/components/CategoryFilter';
 import { LocationPicker } from '@/features/locations/components/LocationPicker';
+import { loadLocations } from '@/features/locations/store/locationsSlice';
 import { MenuListItem } from '@/features/menu/components/MenuListItem';
 import { MenuListSkeleton } from '@/features/menu/components/MenuListSkeleton';
 import { loadMenu, setSelectedCategoryId } from '@/features/menu/store/menuSlice';
@@ -23,8 +24,9 @@ import {
   type MenuSection,
 } from '@/features/menu/utils/getMenuSections';
 import { ThemeHeaderButton } from '@/shared/components/ThemeHeaderButton';
+import { ScreenStatePanel } from '@/shared/components/ScreenStatePanel';
 import { useAppDispatch, useAppSelector } from '@/shared/store/hooks';
-import { AppButton, AppScreen, AppText } from '@/shared/components/ui';
+import { AppScreen, AppText } from '@/shared/components/ui';
 import { useAppTheme } from '@/shared/theme/ThemeContext';
 import type { MenuItemDto } from '@/shared/types/api';
 
@@ -39,12 +41,15 @@ export function MenuListScreen({ navigation }: Props) {
   const dispatch = useAppDispatch();
   const { colors } = useAppTheme();
 
+  const locationsStatus = useAppSelector(state => state.locations.status);
+  const locationsError = useAppSelector(state => state.locations.error);
+  const locationsCount = useAppSelector(state => state.locations.items.length);
   const selectedLocationId = useAppSelector(
     state => state.locations.selectedLocationId,
   );
   const menuData = useAppSelector(state => state.menu.data);
-  const status = useAppSelector(state => state.menu.status);
-  const error = useAppSelector(state => state.menu.error);
+  const menuStatus = useAppSelector(state => state.menu.status);
+  const menuError = useAppSelector(state => state.menu.error);
   const selectedCategoryId = useAppSelector(
     state => state.menu.selectedCategoryId,
   );
@@ -55,9 +60,12 @@ export function MenuListScreen({ navigation }: Props) {
     state => state.menu.staleCacheSavedAtMs,
   );
 
+  const menuMatchesLocation =
+    menuData != null && menuData.locationId === selectedLocationId;
+
   const sections = useMemo(
-    () => getMenuSections(menuData, selectedCategoryId),
-    [menuData, selectedCategoryId],
+    () => (menuMatchesLocation ? getMenuSections(menuData, selectedCategoryId) : []),
+    [menuData, menuMatchesLocation, selectedCategoryId],
   );
 
   const staleNotice = useMemo(() => {
@@ -68,11 +76,18 @@ export function MenuListScreen({ navigation }: Props) {
   }, [showingStaleCache, staleCacheSavedAtMs]);
 
   const availabilityLabel = useMemo(() => {
-    if (!menuData?.availability) {
+    if (!menuMatchesLocation || !menuData?.availability) {
       return null;
     }
     return formatMealPeriods(menuData.availability.activePeriods);
-  }, [menuData?.availability]);
+  }, [menuData?.availability, menuMatchesLocation]);
+
+  const refreshErrorNotice = useMemo(() => {
+    if (menuStatus !== 'failed' || !menuMatchesLocation || !menuData) {
+      return null;
+    }
+    return menuError;
+  }, [menuData, menuError, menuMatchesLocation, menuStatus]);
 
   useLayoutEffect(() => {
     navigation.setOptions({
@@ -87,7 +102,11 @@ export function MenuListScreen({ navigation }: Props) {
     }
   }, [dispatch, selectedLocationId]);
 
-  const onRefresh = useCallback(() => {
+  const onRefreshLocations = useCallback(() => {
+    dispatch(loadLocations());
+  }, [dispatch]);
+
+  const onRefreshMenu = useCallback(() => {
     if (selectedLocationId) {
       dispatch(loadMenu(selectedLocationId));
     }
@@ -118,19 +137,60 @@ export function MenuListScreen({ navigation }: Props) {
     [colors.background],
   );
 
-  if (!selectedLocationId && status !== 'loading') {
+  if (locationsStatus === 'loading' && locationsCount === 0) {
     return (
       <AppScreen edges={['left', 'right', 'bottom']}>
-        <View style={styles.centered}>
-          <AppText variant="body" muted>
-            No location selected. Choose a location to view the menu.
-          </AppText>
-        </View>
+        <ScreenStatePanel
+          loading
+          title="Loading locations"
+          loadingMessage="Fetching store locations…"
+        />
       </AppScreen>
     );
   }
 
-  if (status === 'loading' && !menuData) {
+  if (locationsStatus === 'failed' && locationsCount === 0) {
+    return (
+      <AppScreen edges={['left', 'right', 'bottom']}>
+        <ScreenStatePanel
+          title="Could not load locations"
+          message={locationsError ?? undefined}
+          actionLabel="Try again"
+          onAction={onRefreshLocations}
+        />
+      </AppScreen>
+    );
+  }
+
+  if (locationsStatus === 'succeeded' && locationsCount === 0) {
+    return (
+      <AppScreen edges={['left', 'right', 'bottom']}>
+        <ScreenStatePanel
+          title="No locations available"
+          message="There are no store locations to browse right now. Pull to refresh or try again later."
+          actionLabel="Refresh"
+          onAction={onRefreshLocations}
+        />
+      </AppScreen>
+    );
+  }
+
+  if (!selectedLocationId) {
+    return (
+      <AppScreen edges={['left', 'right', 'bottom']}>
+        <LocationPicker />
+        <ScreenStatePanel
+          title="Choose a location"
+          message="Select a store location to view its menu."
+        />
+      </AppScreen>
+    );
+  }
+
+  if (
+    (menuStatus === 'loading' && !menuMatchesLocation) ||
+    (menuStatus === 'idle' && !menuData)
+  ) {
     return (
       <AppScreen edges={['left', 'right', 'bottom']}>
         <LocationPicker />
@@ -139,16 +199,16 @@ export function MenuListScreen({ navigation }: Props) {
     );
   }
 
-  if (status === 'failed' && !menuData) {
+  if (menuStatus === 'failed' && !menuMatchesLocation) {
     return (
       <AppScreen edges={['left', 'right', 'bottom']}>
-        <View style={styles.centered}>
-          <AppText variant="subtitle">Could not load menu</AppText>
-          <AppText variant="body" muted style={styles.errorText}>
-            {error}
-          </AppText>
-          <AppButton label="Try again" onPress={onRefresh} />
-        </View>
+        <LocationPicker />
+        <ScreenStatePanel
+          title="Could not load menu"
+          message={menuError ?? undefined}
+          actionLabel="Try again"
+          onAction={onRefreshMenu}
+        />
       </AppScreen>
     );
   }
@@ -159,7 +219,7 @@ export function MenuListScreen({ navigation }: Props) {
       {availabilityLabel ? (
         <View
           style={[
-            styles.availabilityBanner,
+            styles.banner,
             { backgroundColor: colors.surface, borderColor: colors.border },
           ]}>
           <AppText variant="caption" muted>
@@ -170,6 +230,7 @@ export function MenuListScreen({ navigation }: Props) {
       {staleNotice ? (
         <View
           style={[
+            styles.banner,
             styles.staleBanner,
             {
               backgroundColor: colors.offlineBanner,
@@ -182,6 +243,22 @@ export function MenuListScreen({ navigation }: Props) {
           </AppText>
         </View>
       ) : null}
+      {refreshErrorNotice ? (
+        <View
+          style={[
+            styles.banner,
+            styles.staleBanner,
+            {
+              backgroundColor: colors.offlineBanner,
+              borderColor: colors.border,
+            },
+          ]}
+          accessibilityRole="alert">
+          <AppText variant="caption" style={{ color: colors.offlineBannerText }}>
+            {refreshErrorNotice}
+          </AppText>
+        </View>
+      ) : null}
       <CategoryFilter />
       <SectionList
         sections={sections}
@@ -191,16 +268,19 @@ export function MenuListScreen({ navigation }: Props) {
         stickySectionHeadersEnabled
         refreshControl={
           <RefreshControl
-            refreshing={status === 'loading' && menuData != null}
-            onRefresh={onRefresh}
+            refreshing={menuStatus === 'loading' && menuMatchesLocation}
+            onRefresh={onRefreshMenu}
           />
         }
         ListEmptyComponent={
           <View style={styles.empty}>
-            <AppText variant="body" muted>
+            <AppText variant="subtitle">
+              {selectedCategoryId ? 'Nothing in this category' : 'Menu is empty'}
+            </AppText>
+            <AppText variant="body" muted style={styles.emptyMessage}>
               {selectedCategoryId
-                ? 'No items in this category for the current meal period.'
-                : 'No menu items available for this location right now.'}
+                ? 'Try another category or check back during the next meal period.'
+                : 'No items are available at this location for the current meal period.'}
             </AppText>
           </View>
         }
@@ -210,16 +290,7 @@ export function MenuListScreen({ navigation }: Props) {
 }
 
 const styles = StyleSheet.create({
-  centered: {
-    flex: 1,
-    padding: 20,
-    gap: 12,
-    justifyContent: 'center',
-  },
-  errorText: {
-    marginBottom: 8,
-  },
-  availabilityBanner: {
+  banner: {
     marginHorizontal: 16,
     marginBottom: 4,
     paddingHorizontal: 12,
@@ -228,12 +299,8 @@ const styles = StyleSheet.create({
     borderWidth: 1,
   },
   staleBanner: {
-    marginHorizontal: 16,
-    marginBottom: 4,
-    paddingHorizontal: 12,
     paddingVertical: 10,
     borderRadius: 10,
-    borderWidth: 1,
   },
   sectionHeader: {
     paddingHorizontal: 16,
@@ -242,5 +309,9 @@ const styles = StyleSheet.create({
   },
   empty: {
     padding: 24,
+    gap: 8,
+  },
+  emptyMessage: {
+    marginTop: 4,
   },
 });

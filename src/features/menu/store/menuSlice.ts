@@ -9,6 +9,7 @@ import {
   writeMenuCache,
 } from '@/features/menu/storage/menuCache';
 import { mergeItemsById } from '@/features/menu/utils/getMenuSections';
+import { formatApiErrorMessage } from '@/shared/utils/formatApiErrorMessage';
 import type { MenuItemDto, MenuResponseDto } from '@/shared/types/api';
 
 export type LoadMenuPayload =
@@ -25,7 +26,7 @@ export const loadMenu = createAsyncThunk<
     await writeMenuCache(locationId, data);
     return { data, fromCache: false as const };
   } catch (e) {
-    const message = e instanceof Error ? e.message : 'Failed to load menu';
+    const message = formatApiErrorMessage(e, 'Failed to load menu');
     const cached = await readMenuCache(locationId);
     if (cached) {
       return {
@@ -38,19 +39,22 @@ export const loadMenu = createAsyncThunk<
   }
 });
 
-export const loadItemById = createAsyncThunk(
-  'menu/loadItemById',
-  async ({
-    itemId,
-    locationId,
-  }: {
-    itemId: string;
-    locationId: string;
-  }) => {
+export const loadItemById = createAsyncThunk<
+  MenuItemDto,
+  { itemId: string; locationId: string },
+  { rejectValue: string }
+>('menu/loadItemById', async ({ itemId, locationId }, { rejectWithValue }) => {
+  try {
     const response = await fetchItemById(itemId, { locationId });
     return response.item;
-  },
-);
+  } catch (e) {
+    return rejectWithValue(
+      formatApiErrorMessage(e, 'Unable to load this item.'),
+    );
+  }
+});
+
+type ItemDetailStatus = 'idle' | 'loading' | 'succeeded' | 'failed';
 
 type MenuState = {
   data: MenuResponseDto | null;
@@ -60,6 +64,9 @@ type MenuState = {
   showingStaleCache: boolean;
   staleCacheSavedAtMs: number | null;
   selectedCategoryId: string | null;
+  itemDetailItemId: string | null;
+  itemDetailStatus: ItemDetailStatus;
+  itemDetailError: string | null;
 };
 
 const initialState: MenuState = {
@@ -70,6 +77,9 @@ const initialState: MenuState = {
   showingStaleCache: false,
   staleCacheSavedAtMs: null,
   selectedCategoryId: null,
+  itemDetailItemId: null,
+  itemDetailStatus: 'idle',
+  itemDetailError: null,
 };
 
 const menuSlice = createSlice({
@@ -83,12 +93,21 @@ const menuSlice = createSlice({
     ) => {
       state.selectedCategoryId = action.payload;
     },
+    clearItemDetailState: state => {
+      state.itemDetailItemId = null;
+      state.itemDetailStatus = 'idle';
+      state.itemDetailError = null;
+    },
   },
   extraReducers: builder => {
     builder
-      .addCase(loadMenu.pending, state => {
+      .addCase(loadMenu.pending, (state, action) => {
         state.status = 'loading';
         state.error = null;
+        if (state.data?.locationId !== action.meta.arg) {
+          state.data = null;
+          state.itemsById = {};
+        }
       })
       .addCase(loadMenu.fulfilled, (state, action) => {
         state.data = action.payload.data;
@@ -106,11 +125,24 @@ const menuSlice = createSlice({
         state.status = 'failed';
         state.error = action.payload ?? 'Failed to load menu';
       })
+      .addCase(loadItemById.pending, (state, action) => {
+        state.itemDetailItemId = action.meta.arg.itemId;
+        state.itemDetailStatus = 'loading';
+        state.itemDetailError = null;
+      })
       .addCase(loadItemById.fulfilled, (state, action) => {
         state.itemsById[action.payload.id] = action.payload;
+        state.itemDetailStatus = 'succeeded';
+        state.itemDetailError = null;
+      })
+      .addCase(loadItemById.rejected, (state, action) => {
+        state.itemDetailStatus = 'failed';
+        state.itemDetailError =
+          action.payload ?? 'Unable to load this item.';
       });
   },
 });
 
-export const { resetMenu, setSelectedCategoryId } = menuSlice.actions;
+export const { resetMenu, setSelectedCategoryId, clearItemDetailState } =
+  menuSlice.actions;
 export const menuReducer = menuSlice.reducer;

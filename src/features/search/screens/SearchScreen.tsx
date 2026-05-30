@@ -21,8 +21,9 @@ import {
   performSearch,
   setSearchQuery,
 } from '@/features/search/store/searchSlice';
+import { ScreenStatePanel } from '@/shared/components/ScreenStatePanel';
 import { useAppDispatch, useAppSelector } from '@/shared/store/hooks';
-import { AppLoading, AppScreen, AppText } from '@/shared/components/ui';
+import { AppScreen, AppText } from '@/shared/components/ui';
 import { useAppTheme } from '@/shared/theme/ThemeContext';
 
 type SearchNav = CompositeNavigationProp<
@@ -45,7 +46,7 @@ export function SearchScreen({ navigation }: Props) {
   const selectedLocationId = useAppSelector(
     state => state.locations.selectedLocationId,
   );
-  const { results, total, status, error } = useAppSelector(
+  const { results, total, status, error, query } = useAppSelector(
     state => state.search,
   );
 
@@ -78,6 +79,17 @@ export function SearchScreen({ navigation }: Props) {
     );
   }, [debouncedQuery, dispatch, selectedLocationId]);
 
+  const onRetrySearch = useCallback(() => {
+    if (debouncedQuery.length > 0) {
+      dispatch(
+        performSearch({
+          q: debouncedQuery,
+          locationId: selectedLocationId ?? undefined,
+        }),
+      );
+    }
+  }, [debouncedQuery, dispatch, selectedLocationId]);
+
   const onOpenItem = useCallback(
     (itemId: string) => {
       nav.navigate('MenuTab', {
@@ -88,21 +100,31 @@ export function SearchScreen({ navigation }: Props) {
     [nav],
   );
 
+  const showInitialHint = debouncedQuery.length === 0;
+  const showLoading = status === 'loading' && debouncedQuery.length > 0;
+  const showError = status === 'failed' && debouncedQuery.length > 0;
+  const showEmptyResults =
+    status === 'succeeded' && debouncedQuery.length > 0 && total === 0;
+
+  const emptyTitle = useMemo(() => {
+    if (showInitialHint) {
+      return 'Search the menu';
+    }
+    if (showEmptyResults) {
+      return 'No results found';
+    }
+    return '';
+  }, [showEmptyResults, showInitialHint]);
+
   const emptyMessage = useMemo(() => {
-    if (debouncedQuery.length === 0) {
-      return 'Search the menu by item name, description, or category.';
+    if (showInitialHint) {
+      return 'Try searching by item name, description, or category — for example, “coffee”.';
     }
-    if (status === 'loading') {
-      return null;
+    if (showEmptyResults) {
+      return `Nothing matched “${query}”. Try a different spelling or a shorter keyword.`;
     }
-    if (status === 'failed') {
-      return error ?? 'Search failed. Try again.';
-    }
-    if (total === 0) {
-      return `No results for "${debouncedQuery}".`;
-    }
-    return null;
-  }, [debouncedQuery, error, status, total]);
+    return '';
+  }, [query, showEmptyResults, showInitialHint]);
 
   return (
     <AppScreen edges={['left', 'right', 'bottom']}>
@@ -136,9 +158,28 @@ export function SearchScreen({ navigation }: Props) {
         )}
       </View>
 
-      {status === 'loading' && debouncedQuery.length > 0 ? (
-        <AppLoading message={`Searching for "${debouncedQuery}"…`} />
-      ) : (
+      {showLoading ? (
+        <ScreenStatePanel
+          loading
+          title="Searching"
+          loadingMessage={`Looking for “${debouncedQuery}”…`}
+        />
+      ) : null}
+
+      {showError ? (
+        <ScreenStatePanel
+          title="Search failed"
+          message={error ?? undefined}
+          actionLabel="Try again"
+          onAction={onRetrySearch}
+        />
+      ) : null}
+
+      {!showLoading && !showError && (showInitialHint || showEmptyResults) ? (
+        <ScreenStatePanel title={emptyTitle} message={emptyMessage} />
+      ) : null}
+
+      {!showLoading && !showError && total > 0 ? (
         <FlatList
           data={results}
           keyExtractor={item => item.id}
@@ -147,25 +188,14 @@ export function SearchScreen({ navigation }: Props) {
             <MenuListItem item={item} onOpenItem={onOpenItem} />
           )}
           ListHeaderComponent={
-            total > 0 ? (
-              <View style={styles.resultsHeader}>
-                <AppText variant="caption" muted>
-                  {total} result{total === 1 ? '' : 's'}
-                </AppText>
-              </View>
-            ) : null
-          }
-          ListEmptyComponent={
-            emptyMessage ? (
-              <View style={styles.empty}>
-                <AppText variant="body" muted>
-                  {emptyMessage}
-                </AppText>
-              </View>
-            ) : null
+            <View style={styles.resultsHeader}>
+              <AppText variant="caption" muted>
+                {total} result{total === 1 ? '' : 's'} for “{query}”
+              </AppText>
+            </View>
           }
         />
-      )}
+      ) : null}
     </AppScreen>
   );
 }
@@ -190,8 +220,5 @@ const styles = StyleSheet.create({
   resultsHeader: {
     paddingHorizontal: 16,
     paddingVertical: 8,
-  },
-  empty: {
-    padding: 24,
   },
 });

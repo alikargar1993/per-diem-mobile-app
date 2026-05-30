@@ -1,17 +1,27 @@
 import { createAsyncThunk, createSlice, type PayloadAction } from '@reduxjs/toolkit';
 import { searchMenu } from '@/features/menu/api/menuApi';
+import { formatApiErrorMessage } from '@/shared/utils/formatApiErrorMessage';
 import type { MenuItemDto } from '@/shared/types/api';
 
-export const performSearch = createAsyncThunk(
-  'search/performSearch',
-  async (params: { q: string; locationId?: string }) => {
+export const performSearch = createAsyncThunk<
+  { query: string; items: MenuItemDto[]; total: number },
+  { q: string; locationId?: string },
+  { rejectValue: string }
+>('search/performSearch', async (params, { rejectWithValue }) => {
+  try {
     const response = await searchMenu({
       q: params.q,
       locationId: params.locationId,
     });
-    return response;
-  },
-);
+    return {
+      query: response.query,
+      items: response.items,
+      total: response.total,
+    };
+  } catch (e) {
+    return rejectWithValue(formatApiErrorMessage(e, 'Search failed'));
+  }
+});
 
 type SearchState = {
   query: string;
@@ -35,6 +45,12 @@ const searchSlice = createSlice({
   reducers: {
     setSearchQuery: (state, action: PayloadAction<string>) => {
       state.query = action.payload;
+      if (action.payload.trim().length === 0) {
+        state.results = [];
+        state.total = 0;
+        state.status = 'idle';
+        state.error = null;
+      }
     },
     resetSearch: () => initialState,
   },
@@ -52,7 +68,7 @@ const searchSlice = createSlice({
       })
       .addCase(performSearch.rejected, (state, action) => {
         state.status = 'failed';
-        state.error = action.error.message ?? 'Search failed';
+        state.error = action.payload ?? 'Search failed';
         state.results = [];
         state.total = 0;
       });

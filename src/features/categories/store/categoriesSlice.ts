@@ -1,5 +1,6 @@
 import { createAsyncThunk, createSlice } from '@reduxjs/toolkit';
 import { fetchCategories } from '@/features/menu/api/menuApi';
+import { formatApiErrorMessage } from '@/shared/utils/formatApiErrorMessage';
 import type { CategoryDto } from '@/shared/types/api';
 
 type CategoriesState = {
@@ -16,13 +17,20 @@ const initialState: CategoriesState = {
   error: null,
 };
 
-export const loadCategories = createAsyncThunk(
-  'categories/loadCategories',
-  async () => {
+export const loadCategories = createAsyncThunk<
+  { categories: CategoryDto[]; total: number },
+  void,
+  { rejectValue: string }
+>('categories/loadCategories', async (_, { rejectWithValue }) => {
+  try {
     const response = await fetchCategories();
     return response;
-  },
-);
+  } catch (e) {
+    return rejectWithValue(
+      formatApiErrorMessage(e, 'Failed to load categories'),
+    );
+  }
+});
 
 const categoriesSlice = createSlice({
   name: 'categories',
@@ -41,7 +49,7 @@ const categoriesSlice = createSlice({
       })
       .addCase(loadCategories.rejected, (state, action) => {
         state.status = 'failed';
-        state.error = action.error.message ?? 'Failed to load categories';
+        state.error = action.payload ?? 'Failed to load categories';
       });
   },
 });
