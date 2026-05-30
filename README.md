@@ -2,29 +2,30 @@
 
 React Native app for browsing multi-location menus powered by the [per-diem-backend](../per-diem-backend) API (Square sandbox catalog proxy).
 
-Boilerplate follows the same architecture as [AutomatedProdNewsFeed](https://github.com/alikargar1993/AutomatedProdNewsFeed): feature-based folders, Redux Toolkit, React Navigation (tabs + stack), axios API client, AsyncStorage persistence, and shared UI primitives.
+Architecture follows [AutomatedProdNewsFeed](https://github.com/alikargar1993/AutomatedProdNewsFeed): feature-based folders, Redux Toolkit, React Navigation (tabs + stack), axios API client, AsyncStorage persistence, and shared UI primitives.
 
-## Features (planned)
+## Features
 
 | Feature | Backend endpoint | Status |
 |---------|------------------|--------|
-| Location switcher | `GET /api/locations` | Boilerplate ready |
-| Menu by location | `GET /api/menu?locationId&at` | Boilerplate ready |
-| Item detail | `GET /api/items/:itemId` | Boilerplate ready |
-| Search | `GET /api/search?locationId&q&at` | Boilerplate ready |
-| Favorites | Local (AsyncStorage) | Boilerplate ready |
-| Offline banner | NetInfo | Implemented |
-| Light / dark theme | System + persisted preference | Implemented |
+| Location switcher | `GET /api/locations` | Done |
+| Menu by location | `GET /api/menu?locationId&at` | Done |
+| Item detail + add to cart | `GET /api/items/:itemId` | Done |
+| Search | `GET /api/search?locationId&q&at` | Done |
+| Cart (local) | AsyncStorage | Done |
+| Offline cache | NetInfo + cached menu/locations/categories | Done |
+| Meal-period + day-of-week menu | `at` query param + availability banner | Done |
+| Light / dark theme | System + persisted preference | Done |
 
 ## Tech stack
 
 - **React Native 0.85.3** with TypeScript
 - **React Navigation 7** — bottom tabs + native stack
-- **Redux Toolkit** — locations, menu, search, favorites state
+- **Redux Toolkit** — locations, categories, menu, search, cart
 - **axios** — HTTP client with auth headers and error mapping
-- **AsyncStorage** — favorites and selected location persistence
-- **NetInfo** — offline detection banner
-- **react-native-svg** — tab icons
+- **AsyncStorage** — cart, selected location, and offline menu cache
+- **NetInfo** — offline detection and reconnect refresh
+- **react-native-dotenv** — `.env` for API URL and token (not committed)
 
 ## Requirements
 
@@ -43,15 +44,22 @@ cd ios && bundle install && bundle exec pod install && cd ..
 
 ## Configuration
 
-1. Copy `.env.example` values into `src/shared/config/env.ts`:
+1. Copy the environment template and set your backend token (must match `API_GENERAL_TOKEN` on the server):
 
-```ts
-export const API_BASE_URL = 'http://localhost:3001';
-export const API_GENERAL_TOKEN = 'your_api_general_token';
-```
+   ```sh
+   cp .env.example .env
+   ```
 
-2. For a physical device, use your machine's LAN IP instead of `localhost`.
+   | Variable | Description |
+   | -------- | ----------- |
+   | `API_BASE_URL` | Backend URL (default `http://localhost:3001`) |
+   | `API_GENERAL_TOKEN` | Bearer token for `/api` routes (min 16 chars) |
+
+2. For a physical device, use your machine's LAN IP in `API_BASE_URL` instead of `localhost`.
 3. Ensure `CORS_ORIGINS` on the backend includes your dev origin if needed.
+4. **Restart Metro** after changing `.env` (Babel inlines values at build time).
+
+Never commit `.env` — it is gitignored. Use `.env.example` as the template only.
 
 ## Run
 
@@ -77,14 +85,15 @@ PerDiem/
 ├── src/
 │   ├── app/                    # App shell, providers, navigation
 │   ├── features/
+│   │   ├── cart/               # Local cart + persistence
+│   │   ├── categories/         # Category filter chips
 │   │   ├── locations/          # Location list + selected location
 │   │   ├── menu/               # Menu list, item detail, API client
-│   │   ├── search/             # Menu search
-│   │   └── favorites/          # Saved items
+│   │   └── search/             # Menu search
 │   └── shared/
 │       ├── api/                # axios client + error types
 │       ├── components/ui/      # AppText, AppScreen, AppButton, …
-│       ├── config/             # API base URL + token
+│       ├── config/             # Reads API settings from @env
 │       ├── storage/            # AsyncStorage helpers
 │       ├── store/              # Redux store + typed hooks
 │       ├── theme/              # Colors + ThemeContext
@@ -93,10 +102,16 @@ PerDiem/
 └── __tests__/
 ```
 
-## Next steps
+## Availability
 
-1. Wire Redux thunks to `menuApi` (`loadMenu`, `loadItem`, `searchMenu`)
-2. Build menu list UI with categories, images, and prices
-3. Add location picker and pull-to-refresh
-4. Implement search input with debounce
-5. Connect favorites to menu items
+The app sends the device clock as `at` (ISO 8601) on menu, search, and item requests. The backend filters variations by:
+
+- **Meal period** — Square custom attribute `Availability` (breakfast / lunch / dinner windows in location timezone)
+- **Day of week** — Square custom attribute `AvailableDays` (weekday / weekend selections)
+
+The menu screen shows the active day and meal periods in a banner (e.g. `Monday · Lunch`).
+
+## Related docs
+
+- Backend setup and API: [per-diem-backend/README.md](../per-diem-backend/README.md)
+- Take-home requirements: [perdiem-fullstack-coding-challenge.txt](../per-diem-backend/perdiem-fullstack-coding-challenge.txt)

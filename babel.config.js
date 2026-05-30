@@ -1,6 +1,7 @@
-module.exports = {
-  presets: ['module:@react-native/babel-preset'],
-  plugins: [
+module.exports = function (api) {
+  api.cache(true);
+
+  const plugins = [
     [
       'module-resolver',
       {
@@ -12,5 +13,21 @@ module.exports = {
         },
       },
     ],
-  ],
+  ];
+
+  if (process.env.NODE_ENV !== 'test') {
+    plugins.unshift([
+      'module:react-native-dotenv',
+      {
+        moduleName: '@env',
+        path: '.env',
+        allowUndefined: true,
+      },
+    ]);
+  }
+
+  return {
+    presets: ['module:@react-native/babel-preset'],
+    plugins,
+  };
 };

@@ -43,10 +43,20 @@ export type MenuCategoryGroupDto = {
 
 export type MealPeriod = 'breakfast' | 'lunch' | 'dinner';
 
+export type DayOfWeek =
+  | 'sun'
+  | 'mon'
+  | 'tue'
+  | 'wed'
+  | 'thu'
+  | 'fri'
+  | 'sat';
+
 export type MenuAvailabilityDto = {
   referenceTime: string;
   timezone: string;
   activePeriods: MealPeriod[];
+  activeDay: DayOfWeek;
 };
 
 export type MenuResponseDto = {

@@ -18,7 +18,7 @@ import { loadLocations } from '@/features/locations/store/locationsSlice';
 import { MenuListItem } from '@/features/menu/components/MenuListItem';
 import { MenuListSkeleton } from '@/features/menu/components/MenuListSkeleton';
 import { loadMenu, setSelectedCategoryId } from '@/features/menu/store/menuSlice';
-import { formatMealPeriods } from '@/features/menu/utils/formatMealPeriods';
+import { formatAvailabilityLabel } from '@/features/menu/utils/formatMealPeriods';
 import {
   getMenuSections,
   type MenuSection,
@@ -85,7 +85,7 @@ export function MenuListScreen({ navigation }: Props) {
     if (!menuMatchesLocation || !menuData?.availability) {
       return null;
     }
-    return formatMealPeriods(menuData.availability.activePeriods);
+    return formatAvailabilityLabel(menuData.availability);
   }, [menuData?.availability, menuMatchesLocation]);
 
   const refreshErrorNotice = useMemo(() => {
