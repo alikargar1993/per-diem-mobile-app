@@ -1,5 +1,6 @@
 import { apiClient } from '@/shared/api/apiClient';
 import type {
+  CategoriesResponseDto,
   HealthResponseDto,
   ItemDetailResponseDto,
   LocationsResponseDto,
@@ -13,8 +14,11 @@ export type MenuQueryParams = {
   at?: string;
 };
 
-export type SearchQueryParams = MenuQueryParams & {
+export type SearchQueryParams = {
   q: string;
+  /** Optional — when omitted, searches the full catalog (all locations). */
+  locationId?: string;
+  at?: string;
 };
 
 /** Client clock as ISO string — pass on every menu/search call for correct meal filtering. */
@@ -29,6 +33,11 @@ export async function fetchHealth(): Promise<HealthResponseDto> {
 
 export async function fetchLocations(): Promise<LocationsResponseDto> {
   const { data } = await apiClient.get<LocationsResponseDto>('/api/locations');
+  return data;
+}
+
+export async function fetchCategories(): Promise<CategoriesResponseDto> {
+  const { data } = await apiClient.get<CategoriesResponseDto>('/api/categories');
   return data;
 }
 
@@ -65,8 +74,8 @@ export async function searchMenu(
 ): Promise<SearchResponseDto> {
   const { data } = await apiClient.get<SearchResponseDto>('/api/search', {
     params: {
-      locationId: params.locationId,
       q: params.q,
+      ...(params.locationId ? { locationId: params.locationId } : {}),
       at: params.at ?? clientReferenceTime(),
     },
   });

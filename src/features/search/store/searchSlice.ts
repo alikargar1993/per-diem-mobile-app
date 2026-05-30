@@ -1,5 +1,17 @@
-import { createSlice, type PayloadAction } from '@reduxjs/toolkit';
+import { createAsyncThunk, createSlice, type PayloadAction } from '@reduxjs/toolkit';
+import { searchMenu } from '@/features/menu/api/menuApi';
 import type { MenuItemDto } from '@/shared/types/api';
+
+export const performSearch = createAsyncThunk(
+  'search/performSearch',
+  async (params: { q: string; locationId?: string }) => {
+    const response = await searchMenu({
+      q: params.q,
+      locationId: params.locationId,
+    });
+    return response;
+  },
+);
 
 type SearchState = {
   query: string;
@@ -25,30 +37,27 @@ const searchSlice = createSlice({
       state.query = action.payload;
     },
     resetSearch: () => initialState,
-    setSearchLoading: state => {
-      state.status = 'loading';
-      state.error = null;
-    },
-    setSearchSucceeded: (
-      state,
-      action: PayloadAction<{ items: MenuItemDto[]; total: number }>,
-    ) => {
-      state.results = action.payload.items;
-      state.total = action.payload.total;
-      state.status = 'succeeded';
-    },
-    setSearchFailed: (state, action: PayloadAction<string>) => {
-      state.status = 'failed';
-      state.error = action.payload;
-    },
+  },
+  extraReducers: builder => {
+    builder
+      .addCase(performSearch.pending, state => {
+        state.status = 'loading';
+        state.error = null;
+      })
+      .addCase(performSearch.fulfilled, (state, action) => {
+        state.query = action.payload.query;
+        state.results = action.payload.items;
+        state.total = action.payload.total;
+        state.status = 'succeeded';
+      })
+      .addCase(performSearch.rejected, (state, action) => {
+        state.status = 'failed';
+        state.error = action.error.message ?? 'Search failed';
+        state.results = [];
+        state.total = 0;
+      });
   },
 });
 
-export const {
-  setSearchQuery,
-  resetSearch,
-  setSearchLoading,
-  setSearchSucceeded,
-  setSearchFailed,
-} = searchSlice.actions;
+export const { setSearchQuery, resetSearch } = searchSlice.actions;
 export const searchReducer = searchSlice.reducer;

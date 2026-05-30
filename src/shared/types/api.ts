@@ -60,13 +60,19 @@ export type LocationsResponseDto = {
   locations: LocationDto[];
 };
 
+export type CategoriesResponseDto = {
+  categories: CategoryDto[];
+  total: number;
+};
+
 export type ItemDetailResponseDto = {
   item: MenuItemDto;
 };
 
 export type SearchResponseDto = {
   query: string;
-  locationId: string;
+  /** Present when search was scoped to a location. */
+  locationId?: string;
   availability: MenuAvailabilityDto;
   items: MenuItemDto[];
   total: number;

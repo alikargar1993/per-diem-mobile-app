@@ -57,10 +57,14 @@ const locationsSlice = createSlice({
       .addCase(loadLocations.fulfilled, (state, action) => {
         state.status = 'succeeded';
         state.items = action.payload;
-        if (
-          !state.selectedLocationId &&
-          action.payload.length > 0
-        ) {
+        if (state.selectedLocationId) {
+          const stillValid = action.payload.some(
+            l => l.id === state.selectedLocationId,
+          );
+          if (!stillValid) {
+            state.selectedLocationId = action.payload[0]?.id ?? null;
+          }
+        } else if (action.payload.length > 0) {
           state.selectedLocationId = action.payload[0].id;
         }
       })

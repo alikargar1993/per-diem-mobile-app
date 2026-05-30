@@ -3,13 +3,19 @@ import {
   configureStore,
   createListenerMiddleware,
 } from '@reduxjs/toolkit';
-import { favoritesReducer, persistFavoriteIds, toggleFavorite } from '@/features/favorites/store/favoritesSlice';
+import { categoriesReducer } from '@/features/categories/store/categoriesSlice';
+import {
+  favoritesReducer,
+  persistFavoriteIds,
+  toggleFavorite,
+} from '@/features/favorites/store/favoritesSlice';
 import { locationsReducer } from '@/features/locations/store/locationsSlice';
 import { menuReducer } from '@/features/menu/store/menuSlice';
 import { searchReducer } from '@/features/search/store/searchSlice';
 
 const rootReducer = combineReducers({
   locations: locationsReducer,
+  categories: categoriesReducer,
   menu: menuReducer,
   search: searchReducer,
   favorites: favoritesReducer,
