@@ -9,6 +9,7 @@ import {
 } from '@/features/menu/store/menuSlice';
 import { formatMoney } from '@/features/menu/utils/formatMoney';
 import { ScreenStatePanel } from '@/shared/components/ScreenStatePanel';
+import { useNetworkStatus } from '@/shared/hooks/useNetworkStatus';
 import { useAppDispatch, useAppSelector } from '@/shared/store/hooks';
 import {
   AppButton,
@@ -37,6 +38,7 @@ export function ItemDetailScreen({ navigation, route }: Props) {
   const { itemId } = route.params;
   const dispatch = useAppDispatch();
   const { colors } = useAppTheme();
+  const { isOffline } = useNetworkStatus();
 
   const selectedLocationId = useAppSelector(
     state => state.locations.selectedLocationId,
@@ -108,11 +110,13 @@ export function ItemDetailScreen({ navigation, route }: Props) {
         <ScreenStatePanel
           title="Item not available"
           message={
-            itemDetailError ??
-            'This item may not be available at the selected location or during the current meal period.'
+            isOffline
+              ? 'This item is not in your saved menu. Connect to the internet to load the latest item details.'
+              : (itemDetailError ??
+                'This item may not be available at the selected location or during the current meal period.')
           }
-          actionLabel="Try again"
-          onAction={onRetry}
+          actionLabel={isOffline ? 'Go back' : 'Try again'}
+          onAction={isOffline ? onGoBack : onRetry}
         />
       </AppScreen>
     );

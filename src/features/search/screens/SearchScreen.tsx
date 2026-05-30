@@ -19,8 +19,10 @@ import type { MenuStackParamList } from '@/app/navigation/types';
 import { MenuListItem } from '@/features/menu/components/MenuListItem';
 import {
   performSearch,
+  resetSearch,
   setSearchQuery,
 } from '@/features/search/store/searchSlice';
+import { useNetworkStatus } from '@/shared/hooks/useNetworkStatus';
 import { ScreenStatePanel } from '@/shared/components/ScreenStatePanel';
 import { useAppDispatch, useAppSelector } from '@/shared/store/hooks';
 import { AppScreen, AppText } from '@/shared/components/ui';
@@ -38,6 +40,7 @@ const SEARCH_DEBOUNCE_MS = 350;
 export function SearchScreen({ navigation }: Props) {
   const dispatch = useAppDispatch();
   const { colors, isDark } = useAppTheme();
+  const { isOffline } = useNetworkStatus();
   const nav = navigation as SearchNav;
 
   const [inputText, setInputText] = useState('');
@@ -62,13 +65,19 @@ export function SearchScreen({ navigation }: Props) {
   }, [colors.primary, colors.surface, colors.text, isDark, navigation]);
 
   useEffect(() => {
+    if (isOffline) {
+      dispatch(resetSearch());
+      return;
+    }
     const id = setTimeout(() => setDebouncedQuery(inputText.trim()), SEARCH_DEBOUNCE_MS);
     return () => clearTimeout(id);
-  }, [inputText]);
+  }, [dispatch, inputText, isOffline]);
 
   useEffect(() => {
-    if (debouncedQuery.length === 0) {
-      dispatch(setSearchQuery(''));
+    if (isOffline || debouncedQuery.length === 0) {
+      if (debouncedQuery.length === 0) {
+        dispatch(setSearchQuery(''));
+      }
       return;
     }
     dispatch(
@@ -77,10 +86,10 @@ export function SearchScreen({ navigation }: Props) {
         locationId: selectedLocationId ?? undefined,
       }),
     );
-  }, [debouncedQuery, dispatch, selectedLocationId]);
+  }, [debouncedQuery, dispatch, isOffline, selectedLocationId]);
 
   const onRetrySearch = useCallback(() => {
-    if (debouncedQuery.length > 0) {
+    if (!isOffline && debouncedQuery.length > 0) {
       dispatch(
         performSearch({
           q: debouncedQuery,
@@ -88,7 +97,7 @@ export function SearchScreen({ navigation }: Props) {
         }),
       );
     }
-  }, [debouncedQuery, dispatch, selectedLocationId]);
+  }, [debouncedQuery, dispatch, isOffline, selectedLocationId]);
 
   const onOpenItem = useCallback(
     (itemId: string) => {
@@ -100,13 +109,22 @@ export function SearchScreen({ navigation }: Props) {
     [nav],
   );
 
-  const showInitialHint = debouncedQuery.length === 0;
-  const showLoading = status === 'loading' && debouncedQuery.length > 0;
-  const showError = status === 'failed' && debouncedQuery.length > 0;
+  const showOffline = isOffline;
+  const showInitialHint = !showOffline && debouncedQuery.length === 0;
+  const showLoading =
+    !showOffline && status === 'loading' && debouncedQuery.length > 0;
+  const showError =
+    !showOffline && status === 'failed' && debouncedQuery.length > 0;
   const showEmptyResults =
-    status === 'succeeded' && debouncedQuery.length > 0 && total === 0;
+    !showOffline &&
+    status === 'succeeded' &&
+    debouncedQuery.length > 0 &&
+    total === 0;
 
   const emptyTitle = useMemo(() => {
+    if (showOffline) {
+      return 'Search unavailable offline';
+    }
     if (showInitialHint) {
       return 'Search the menu';
     }
@@ -114,9 +132,12 @@ export function SearchScreen({ navigation }: Props) {
       return 'No results found';
     }
     return '';
-  }, [showEmptyResults, showInitialHint]);
+  }, [showEmptyResults, showInitialHint, showOffline]);
 
   const emptyMessage = useMemo(() => {
+    if (showOffline) {
+      return 'Connect to the internet to search the menu. You can still browse saved items on the Menu tab.';
+    }
     if (showInitialHint) {
       return 'Try searching by item name, description, or category — for example, “coffee”.';
     }
@@ -124,7 +145,7 @@ export function SearchScreen({ navigation }: Props) {
       return `Nothing matched “${query}”. Try a different spelling or a shorter keyword.`;
     }
     return '';
-  }, [query, showEmptyResults, showInitialHint]);
+  }, [query, showEmptyResults, showInitialHint, showOffline]);
 
   return (
     <AppScreen edges={['left', 'right', 'bottom']}>
@@ -132,22 +153,31 @@ export function SearchScreen({ navigation }: Props) {
         <TextInput
           value={inputText}
           onChangeText={setInputText}
-          placeholder="Search menu… e.g. coffee"
+          placeholder={
+            isOffline ? 'Search unavailable offline' : 'Search menu… e.g. coffee'
+          }
           placeholderTextColor={colors.textMuted}
           autoCapitalize="none"
           autoCorrect={false}
           clearButtonMode="while-editing"
+          editable={!isOffline}
           accessibilityLabel="Search menu"
+          accessibilityState={{ disabled: isOffline }}
           style={[
             styles.searchInput,
             {
               backgroundColor: colors.surface,
               borderColor: colors.border,
               color: colors.text,
+              opacity: isOffline ? 0.6 : 1,
             },
           ]}
         />
-        {selectedLocationId ? (
+        {isOffline ? (
+          <AppText variant="caption" muted style={styles.scopeHint}>
+            Search requires an internet connection.
+          </AppText>
+        ) : selectedLocationId ? (
           <AppText variant="caption" muted style={styles.scopeHint}>
             Results filtered to your selected location.
           </AppText>
@@ -157,6 +187,10 @@ export function SearchScreen({ navigation }: Props) {
           </AppText>
         )}
       </View>
+
+      {showOffline ? (
+        <ScreenStatePanel title={emptyTitle} message={emptyMessage} />
+      ) : null}
 
       {showLoading ? (
         <ScreenStatePanel
@@ -175,11 +209,11 @@ export function SearchScreen({ navigation }: Props) {
         />
       ) : null}
 
-      {!showLoading && !showError && (showInitialHint || showEmptyResults) ? (
+      {!showOffline && !showLoading && !showError && (showInitialHint || showEmptyResults) ? (
         <ScreenStatePanel title={emptyTitle} message={emptyMessage} />
       ) : null}
 
-      {!showLoading && !showError && total > 0 ? (
+      {!showOffline && !showLoading && !showError && total > 0 ? (
         <FlatList
           data={results}
           keyExtractor={item => item.id}

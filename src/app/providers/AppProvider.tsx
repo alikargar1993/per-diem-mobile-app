@@ -10,6 +10,7 @@ import {
   hydrateSelectedLocation,
   loadLocations,
 } from '@/features/locations/store/locationsSlice';
+import { NetworkReconnect } from '@/shared/components/NetworkReconnect';
 import { OfflineBanner } from '@/shared/components/OfflineBanner';
 import { store, type AppDispatch } from '@/shared/store';
 import { ThemeProvider, useAppTheme } from '@/shared/theme/ThemeContext';
@@ -29,6 +30,7 @@ function ThemedApp() {
     <View style={themedAppStyles.root}>
       <ThemedStatusBar />
       <OfflineBanner />
+      <NetworkReconnect />
       <View style={themedAppStyles.body}>
         <RootNavigator />
       </View>

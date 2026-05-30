@@ -9,6 +9,7 @@ import {
   writeMenuCache,
 } from '@/features/menu/storage/menuCache';
 import { mergeItemsById } from '@/features/menu/utils/getMenuSections';
+import { findItemInMenu } from '@/features/menu/utils/findItemInMenu';
 import { formatApiErrorMessage } from '@/shared/utils/formatApiErrorMessage';
 import type { MenuItemDto, MenuResponseDto } from '@/shared/types/api';
 
@@ -48,6 +49,13 @@ export const loadItemById = createAsyncThunk<
     const response = await fetchItemById(itemId, { locationId });
     return response.item;
   } catch (e) {
+    const cached = await readMenuCache(locationId);
+    if (cached) {
+      const item = findItemInMenu(cached.data, itemId);
+      if (item) {
+        return item;
+      }
+    }
     return rejectWithValue(
       formatApiErrorMessage(e, 'Unable to load this item.'),
     );

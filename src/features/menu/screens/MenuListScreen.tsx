@@ -25,6 +25,7 @@ import {
 } from '@/features/menu/utils/getMenuSections';
 import { ThemeHeaderButton } from '@/shared/components/ThemeHeaderButton';
 import { ScreenStatePanel } from '@/shared/components/ScreenStatePanel';
+import { useNetworkStatus } from '@/shared/hooks/useNetworkStatus';
 import { useAppDispatch, useAppSelector } from '@/shared/store/hooks';
 import { AppScreen, AppText } from '@/shared/components/ui';
 import { useAppTheme } from '@/shared/theme/ThemeContext';
@@ -40,6 +41,7 @@ function formatCacheAge(savedAtMs: number): string {
 export function MenuListScreen({ navigation }: Props) {
   const dispatch = useAppDispatch();
   const { colors } = useAppTheme();
+  const { isOffline } = useNetworkStatus();
 
   const locationsStatus = useAppSelector(state => state.locations.status);
   const locationsError = useAppSelector(state => state.locations.error);
@@ -72,8 +74,12 @@ export function MenuListScreen({ navigation }: Props) {
     if (!showingStaleCache || staleCacheSavedAtMs == null) {
       return null;
     }
-    return `Could not refresh the menu. Showing saved data from ${formatCacheAge(staleCacheSavedAtMs)}. Pull to refresh to try again.`;
-  }, [showingStaleCache, staleCacheSavedAtMs]);
+    const age = formatCacheAge(staleCacheSavedAtMs);
+    if (isOffline) {
+      return `You are offline. Showing saved menu from ${age}.`;
+    }
+    return `Could not refresh the menu. Showing saved data from ${age}. Pull to refresh to try again.`;
+  }, [isOffline, showingStaleCache, staleCacheSavedAtMs]);
 
   const availabilityLabel = useMemo(() => {
     if (!menuMatchesLocation || !menuData?.availability) {
@@ -153,10 +159,14 @@ export function MenuListScreen({ navigation }: Props) {
     return (
       <AppScreen edges={['left', 'right', 'bottom']}>
         <ScreenStatePanel
-          title="Could not load locations"
-          message={locationsError ?? undefined}
-          actionLabel="Try again"
-          onAction={onRefreshLocations}
+          title={isOffline ? 'You are offline' : 'Could not load locations'}
+          message={
+            isOffline
+              ? 'No saved locations found on this device. Connect to the internet to load store locations.'
+              : (locationsError ?? undefined)
+          }
+          actionLabel={isOffline ? undefined : 'Try again'}
+          onAction={isOffline ? undefined : onRefreshLocations}
         />
       </AppScreen>
     );
@@ -204,10 +214,14 @@ export function MenuListScreen({ navigation }: Props) {
       <AppScreen edges={['left', 'right', 'bottom']}>
         <LocationPicker />
         <ScreenStatePanel
-          title="Could not load menu"
-          message={menuError ?? undefined}
-          actionLabel="Try again"
-          onAction={onRefreshMenu}
+          title={isOffline ? 'You are offline' : 'Could not load menu'}
+          message={
+            isOffline
+              ? 'No saved menu found for this location. Connect to the internet to load the latest menu.'
+              : (menuError ?? undefined)
+          }
+          actionLabel={isOffline ? undefined : 'Try again'}
+          onAction={isOffline ? undefined : onRefreshMenu}
         />
       </AppScreen>
     );
