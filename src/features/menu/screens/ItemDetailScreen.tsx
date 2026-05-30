@@ -4,6 +4,12 @@ import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { MenuStackParamList } from '@/app/navigation/types';
 import { ItemDetailSkeleton } from '@/features/menu/components/ItemDetailSkeleton';
 import {
+  addToCart,
+  decrementQuantity,
+  incrementQuantity,
+} from '@/features/cart/store/cartSlice';
+import { QuantityStepper } from '@/features/cart/components/QuantityStepper';
+import {
   clearItemDetailState,
   loadItemById,
 } from '@/features/menu/store/menuSlice';
@@ -47,6 +53,10 @@ export function ItemDetailScreen({ navigation, route }: Props) {
   const itemDetailItemId = useAppSelector(state => state.menu.itemDetailItemId);
   const itemDetailStatus = useAppSelector(state => state.menu.itemDetailStatus);
   const itemDetailError = useAppSelector(state => state.menu.itemDetailError);
+  const cartQuantity = useAppSelector(state => {
+    const line = state.cart.lines.find(l => l.itemId === itemId);
+    return line?.quantity ?? 0;
+  });
 
   const isLoadingItem =
     !item &&
@@ -90,6 +100,24 @@ export function ItemDetailScreen({ navigation, route }: Props) {
       dispatch(loadItemById({ itemId, locationId: selectedLocationId }));
     }
   }, [dispatch, itemId, selectedLocationId]);
+
+  const onAddToCart = useCallback(() => {
+    if (item) {
+      dispatch(addToCart(item));
+    }
+  }, [dispatch, item]);
+
+  const onIncrementCart = useCallback(() => {
+    if (cartQuantity > 0) {
+      dispatch(incrementQuantity(itemId));
+    } else if (item) {
+      dispatch(addToCart(item));
+    }
+  }, [cartQuantity, dispatch, item, itemId]);
+
+  const onDecrementCart = useCallback(() => {
+    dispatch(decrementQuantity(itemId));
+  }, [dispatch, itemId]);
 
   if (!selectedLocationId) {
     return (
@@ -181,6 +209,26 @@ export function ItemDetailScreen({ navigation, route }: Props) {
             ))}
           </View>
         ) : null}
+        <View style={[surfaceStyle, styles.cartSection]}>
+          <AppText variant="label" muted>
+            Cart
+          </AppText>
+          {cartQuantity > 0 ? (
+            <View style={styles.cartControls}>
+              <QuantityStepper
+                quantity={cartQuantity}
+                onIncrement={onIncrementCart}
+                onDecrement={onDecrementCart}
+                minQuantity={0}
+              />
+              <AppText variant="caption" muted>
+                {cartQuantity} in cart
+              </AppText>
+            </View>
+          ) : (
+            <AppButton label="Add to cart" onPress={onAddToCart} />
+          )}
+        </View>
         <AppButton label="Back to menu" variant="secondary" onPress={onGoBack} />
       </ScrollView>
     </AppScreen>
@@ -208,5 +256,11 @@ const styles = StyleSheet.create({
   },
   metaValue: {
     marginTop: 4,
+  },
+  cartSection: {
+    gap: 12,
+  },
+  cartControls: {
+    gap: 8,
   },
 });

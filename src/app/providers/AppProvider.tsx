@@ -4,8 +4,8 @@ import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { Provider, useDispatch } from 'react-redux';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { RootNavigator } from '@/app/navigation/RootNavigator';
+import { hydrateCart } from '@/features/cart/store/cartSlice';
 import { loadCategories } from '@/features/categories/store/categoriesSlice';
-import { hydrateFavorites } from '@/features/favorites/store/favoritesSlice';
 import {
   hydrateSelectedLocation,
   loadLocations,
@@ -42,7 +42,7 @@ function AppBootstrap() {
   const dispatch = useDispatch<AppDispatch>();
 
   useEffect(() => {
-    dispatch(hydrateFavorites());
+    dispatch(hydrateCart());
     dispatch(hydrateSelectedLocation()).then(() => {
       dispatch(loadLocations());
     });

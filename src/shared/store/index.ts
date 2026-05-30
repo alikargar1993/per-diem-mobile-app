@@ -2,13 +2,13 @@ import {
   combineReducers,
   configureStore,
   createListenerMiddleware,
+  type UnknownAction,
 } from '@reduxjs/toolkit';
-import { categoriesReducer } from '@/features/categories/store/categoriesSlice';
 import {
-  favoritesReducer,
-  persistFavoriteIds,
-  toggleFavorite,
-} from '@/features/favorites/store/favoritesSlice';
+  cartReducer,
+  persistCartLines,
+} from '@/features/cart/store/cartSlice';
+import { categoriesReducer } from '@/features/categories/store/categoriesSlice';
 import { locationsReducer } from '@/features/locations/store/locationsSlice';
 import { menuReducer } from '@/features/menu/store/menuSlice';
 import { searchReducer } from '@/features/search/store/searchSlice';
@@ -18,25 +18,36 @@ const rootReducer = combineReducers({
   categories: categoriesReducer,
   menu: menuReducer,
   search: searchReducer,
-  favorites: favoritesReducer,
+  cart: cartReducer,
 });
 
 export type RootState = ReturnType<typeof rootReducer>;
 
-const favoritesListener = createListenerMiddleware<RootState>();
+const cartListener = createListenerMiddleware<RootState>();
 
-favoritesListener.startListening({
-  actionCreator: toggleFavorite,
+const cartMutationTypes = new Set([
+  'cart/addToCart',
+  'cart/incrementQuantity',
+  'cart/decrementQuantity',
+  'cart/setQuantity',
+  'cart/removeFromCart',
+  'cart/clearCart',
+  'cart/hydrate/fulfilled',
+]);
+
+cartListener.startListening({
+  predicate: (action): action is UnknownAction =>
+    cartMutationTypes.has(action.type),
   effect: async (_action, listenerApi) => {
-    const ids = listenerApi.getState().favorites.ids;
-    await persistFavoriteIds(ids);
+    const lines = listenerApi.getState().cart.lines;
+    await persistCartLines(lines);
   },
 });
 
 export const store = configureStore({
   reducer: rootReducer,
   middleware: getDefaultMiddleware =>
-    getDefaultMiddleware().prepend(favoritesListener.middleware),
+    getDefaultMiddleware().prepend(cartListener.middleware),
 });
 
 export type AppDispatch = typeof store.dispatch;

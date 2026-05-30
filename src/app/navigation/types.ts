@@ -8,5 +8,5 @@ export type MenuStackParamList = {
 export type RootTabParamList = {
   MenuTab: NavigatorScreenParams<MenuStackParamList>;
   SearchTab: undefined;
-  FavoritesTab: undefined;
+  CartTab: undefined;
 };

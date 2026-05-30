@@ -1,10 +1,12 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { NavigationContainer, DefaultTheme, DarkTheme } from '@react-navigation/native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { MenuStackNavigator } from '@/app/navigation/MenuStackNavigator';
 import type { RootTabParamList } from '@/app/navigation/types';
-import { FavoritesScreen } from '@/features/favorites/screens/FavoritesScreen';
+import { CartScreen } from '@/features/cart/screens/CartScreen';
+import { selectTotalQuantity } from '@/features/cart/utils/cartTotals';
 import { SearchScreen } from '@/features/search/screens/SearchScreen';
+import { useAppSelector } from '@/shared/store/hooks';
 import { AppText, Icon } from '@/shared/components/ui';
 import { useAppTheme } from '@/shared/theme/ThemeContext';
 
@@ -12,6 +14,11 @@ const Tab = createBottomTabNavigator<RootTabParamList>();
 
 export function RootNavigator() {
   const { colors, isDark } = useAppTheme();
+  const cartLines = useAppSelector(state => state.cart.lines);
+  const cartBadge = useMemo(
+    () => selectTotalQuantity(cartLines),
+    [cartLines],
+  );
 
   const navigationTheme = {
     ...(isDark ? DarkTheme : DefaultTheme),
@@ -70,16 +77,18 @@ export function RootNavigator() {
           }}
         />
         <Tab.Screen
-          name="FavoritesTab"
-          component={FavoritesScreen}
+          name="CartTab"
+          component={CartScreen}
           options={{
-            title: 'Favorites',
+            title: 'Cart',
+            headerShown: true,
+            tabBarBadge: cartBadge > 0 ? cartBadge : undefined,
             tabBarIcon: ({ color }) => (
-              <Icon name="favorite" size={24} color={color} />
+              <Icon name="cart" size={24} color={color} />
             ),
             tabBarLabel: ({ color }) => (
               <AppText variant="caption" style={{ color }}>
-                Favorites
+                Cart
               </AppText>
             ),
           }}
