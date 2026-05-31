@@ -69,6 +69,7 @@ yarn-error.log
 # Environment
 .env
 .env.local
+src/shared/config/env.ts
 
 # Yarn
 .yarn/*

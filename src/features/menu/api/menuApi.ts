@@ -37,13 +37,18 @@ export async function fetchLocations(): Promise<LocationsResponseDto> {
 }
 
 export async function fetchCategories(): Promise<CategoriesResponseDto> {
-  const { data } = await apiClient.get<CategoriesResponseDto>('/api/categories');
+  const { data } = await apiClient.get<CategoriesResponseDto>(
+    '/api/categories',
+  );
   return data;
 }
 
 export async function fetchMenu(
   params: MenuQueryParams,
 ): Promise<MenuResponseDto> {
+  console.log(clientReferenceTime(), 'clientReferenceTime()');
+  console.log(params.at ?? clientReferenceTime(), 'params.at');
+
   const { data } = await apiClient.get<MenuResponseDto>('/api/menu', {
     params: {
       locationId: params.locationId,

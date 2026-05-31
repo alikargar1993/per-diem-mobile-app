@@ -5,7 +5,7 @@ module.exports = {
   setupFiles: [...preset.setupFiles, '<rootDir>/jest.setup.js'],
   moduleNameMapper: {
     ...preset.moduleNameMapper,
-    '^@env$': '<rootDir>/__mocks__/env.js',
+    '^@/shared/config/env$': '<rootDir>/src/shared/config/env.example.ts',
     '^@assets/svg/.*\\.svg$': '<rootDir>/__mocks__/svgMock.tsx',
     '^@assets/(.*)$': '<rootDir>/assets/$1',
     '^@/(.*)$': '<rootDir>/src/$1',
