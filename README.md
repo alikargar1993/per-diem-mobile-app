@@ -2,29 +2,49 @@
 
 React Native (CLI, no Expo) app for browsing multi-location menus powered by the [per-diem-backend](../per-diem-backend) API — a thin proxy over Square sandbox Catalog & Locations.
 
-Architecture follows [AutomatedProdNewsFeed](https://github.com/alikargar1993/AutomatedProdNewsFeed): feature-based folders, Redux Toolkit, React Navigation (tabs + stack), axios API client, AsyncStorage persistence, and shared UI primitives.
+Architecture follows: feature-based folders, Redux Toolkit, React Navigation (tabs + stack), axios API client, AsyncStorage persistence, and shared UI primitives.
+
+## Screenshots
+
+Screenshots from the iOS simulator (iPhone 15 Pro).
+
+| Menu — category filter & availability                                   | Location picker                                               |
+| ----------------------------------------------------------------------- | ------------------------------------------------------------- |
+| ![Menu with category filter](docs/screenshots/menu-category-filter.png) | ![Choose location](docs/screenshots/menu-location-picker.png) |
+
+| Stale menu + pull to refresh                                  | Offline — cached menu & empty state                            |
+| ------------------------------------------------------------- | -------------------------------------------------------------- |
+| ![Stale data banner](docs/screenshots/menu-stale-refresh.png) | ![Offline empty menu](docs/screenshots/menu-offline-empty.png) |
+
+| Search (location-scoped)                       | Item detail                                             |
+| ---------------------------------------------- | ------------------------------------------------------- |
+| ![Search results](docs/screenshots/search.png) | ![Item detail](docs/screenshots/item-detail-muffin.png) |
+
+| Item detail — cart quantity                                           | Cart                                      |
+| --------------------------------------------------------------------- | ----------------------------------------- |
+| ![Item detail with quantity](docs/screenshots/item-detail-coffee.png) | ![Cart screen](docs/screenshots/cart.png) |
 
 ## Features
 
 ### Core (take-home requirements)
 
-| Feature | How it works |
-|---------|----------------|
-| **Location switcher** | Loads locations from `GET /api/locations`, persists selection in AsyncStorage, modal picker on the menu screen |
-| **Menu by location** | `GET /api/menu?locationId&at` — items grouped by category in a `SectionList` |
-| **Location-scoped catalog** | Only items present at the selected location (handled server-side via Square `present_at_*` / `absent_at_*`) |
-| **Category filter** | Horizontal chips from `GET /api/categories`; filter the visible menu sections |
-| **Item detail** | Name, description, image, and price formatted from cents (`formatMoney`) via `GET /api/items/:itemId` |
-| **Loading / empty / error states** | Skeletons, `ScreenStatePanel`, friendly API error messages — no infinite spinners |
+| Feature                            | How it works                                                                                                   |
+| ---------------------------------- | -------------------------------------------------------------------------------------------------------------- |
+| **Location switcher**              | Loads locations from `GET /api/locations`, persists selection in AsyncStorage, modal picker on the menu screen |
+| **Menu by location**               | `GET /api/menu?locationId&at` — items grouped by category in a `SectionList`                                   |
+| **Location-scoped catalog**        | Only items present at the selected location (handled server-side via Square `present_at_*` / `absent_at_*`)    |
+| **Category filter**                | Horizontal chips from `GET /api/categories`; filter the visible menu sections                                  |
+| **Item detail**                    | Name, description, image, and price formatted from cents (`formatMoney`) via `GET /api/items/:itemId`          |
+| **Loading / empty / error states** | Skeletons, `ScreenStatePanel`, friendly API error messages — no infinite spinners                              |
 
 ### Bonuses
 
-| Feature | How it works |
-|---------|----------------|
-| **Time-of-day & day-of-week availability** | Sends device clock as `at` (ISO 8601); backend filters by Square custom attributes. Menu banner shows e.g. `Monday · Lunch` |
-| **Search** | Debounced `GET /api/search?locationId&q&at`; scoped to selected location |
-| **Cart** | Add from item detail, adjust quantity, remove lines, subtotal; persisted locally in AsyncStorage; tab badge count |
-| **Offline-friendly** | Caches locations, categories, and menu per location; offline banner; search disabled offline; stale-data notice with pull-to-refresh; auto-refresh on reconnect |
+| Feature                                    | How it works                                                                                                                                                    |
+| ------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Time-of-day & day-of-week availability** | Sends device clock as `at` (ISO 8601); backend filters by Square custom attributes. Menu banner shows e.g. `Monday · Lunch`                                     |
+| **Search**                                 | Debounced `GET /api/search?locationId&q&at`; scoped to selected location                                                                                        |
+| **Cart**                                   | Add from item detail, adjust quantity, remove lines, subtotal; persisted locally in AsyncStorage; tab badge count                                               |
+| **Offline-friendly**                       | Caches locations, categories, and menu per location; offline banner; search disabled offline; stale-data notice with pull-to-refresh; auto-refresh on reconnect |
 
 ### Product / UX
 
@@ -77,11 +97,11 @@ cd ios && bundle install && bundle exec pod install && cd ..
    export const API_GENERAL_TOKEN = 'your_api_general_token'; // min 16 chars
    ```
 
-   | Setting | Notes |
-   | -------- | ----- |
-   | `API_BASE_URL` | Backend URL. Use your machine **LAN IP** on a physical device (not `localhost`). |
-   | `API_GENERAL_TOKEN` | Must match `API_GENERAL_TOKEN` in `per-diem-backend/.env`. |
-   | Backend CORS | Add your dev origin to `CORS_ORIGINS` on the server if needed. |
+   | Setting             | Notes                                                                            |
+   | ------------------- | -------------------------------------------------------------------------------- |
+   | `API_BASE_URL`      | Backend URL. Use your machine **LAN IP** on a physical device (not `localhost`). |
+   | `API_GENERAL_TOKEN` | Must match `API_GENERAL_TOKEN` in `per-diem-backend/.env`.                       |
+   | Backend CORS        | Add your dev origin to `CORS_ORIGINS` on the server if needed.                   |
 
 3. Restart Metro after changing `env.ts`.
 
@@ -125,6 +145,7 @@ PerDiem/
 │       ├── theme/              # Colors + ThemeContext
 │       └── types/              # Backend DTO mirrors
 ├── assets/svg/                 # Tab icons
+├── docs/screenshots/           # README screenshots
 └── __tests__/
 ```
 
