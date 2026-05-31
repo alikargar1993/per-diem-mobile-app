@@ -4,6 +4,26 @@ React Native (CLI, no Expo) app for browsing multi-location menus powered by the
 
 Architecture follows [AutomatedProdNewsFeed](https://github.com/alikargar1993/AutomatedProdNewsFeed): feature-based folders, Redux Toolkit, React Navigation (tabs + stack), axios API client, AsyncStorage persistence, and shared UI primitives.
 
+## Screenshots
+
+Screenshots from the iOS simulator (iPhone 15 Pro).
+
+| Menu — category filter & availability | Location picker |
+| --- | --- |
+| ![Menu with category filter](docs/screenshots/menu-category-filter.png) | ![Choose location](docs/screenshots/menu-location-picker.png) |
+
+| Stale menu + pull to refresh | Offline — cached menu & empty state |
+| --- | --- |
+| ![Stale data banner](docs/screenshots/menu-stale-refresh.png) | ![Offline empty menu](docs/screenshots/menu-offline-empty.png) |
+
+| Search (location-scoped) | Item detail |
+| --- | --- |
+| ![Search results](docs/screenshots/search.png) | ![Item detail](docs/screenshots/item-detail-muffin.png) |
+
+| Item detail — cart quantity | Cart |
+| --- | --- |
+| ![Item detail with quantity](docs/screenshots/item-detail-coffee.png) | ![Cart screen](docs/screenshots/cart.png) |
+
 ## Features
 
 ### Core (take-home requirements)
@@ -125,6 +145,7 @@ PerDiem/
 │       ├── theme/              # Colors + ThemeContext
 │       └── types/              # Backend DTO mirrors
 ├── assets/svg/                 # Tab icons
+├── docs/screenshots/           # README screenshots
 └── __tests__/
 ```
 
