@@ -4,6 +4,8 @@ React Native (CLI, no Expo) app for browsing multi-location menus powered by the
 
 Architecture follows: feature-based folders, Redux Toolkit, React Navigation (tabs + stack), axios API client, AsyncStorage persistence, and shared UI primitives.
 
+For production React Native apps, **over-the-air (OTA) updates** are among the most important capabilities: ship JavaScript and asset changes without waiting on a full App Store / Play Store review for every fix, which speeds releases and can reduce how often you run full native CI/CD pipelines.
+
 ## Screenshots
 
 Screenshots from the iOS simulator (iPhone 15 Pro).
@@ -162,6 +164,7 @@ Unavailable variations are hidden from the menu response, not shown as disabled 
 
 Features and improvements for a production-ready version:
 
+- **OTA updates** — Integrate an OTA provider , so JS/asset fixes ship outside the store review cycle; prioritize this to increase release velocity and cut time spent on full native builds in CI/CD.
 - **User auth + server cart** — Sync cart to the backend with per-user sessions (JWT/OAuth) instead of device-only AsyncStorage.
 - **Modifiers on item detail** — Render Square modifier lists and let guests customize items before adding to cart.
 - **Out-of-stock state** — Show inventory from Square when a variation cannot be ordered.
